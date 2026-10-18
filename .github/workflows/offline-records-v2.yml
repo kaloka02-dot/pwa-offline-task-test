@@ -1,0 +1,24 @@
+name: Offline Records V2 Browser Tests
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'experiments/offline-records-v2/**'
+      - '.github/workflows/offline-records-v2.yml'
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: experiments/offline-records-v2
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
