@@ -9,6 +9,7 @@ test('controlled activation fault is delivered and existing offline shell remain
  try{
   await request.post('/__test/mode',{data:'bad-activate'});
   const prior=Number(await (await request.get('/__test/bad-fetch-count')).text());
+  const activationPrior=Number(await (await request.get('/__test/activation-count')).text());
   const outcome=await page.evaluate(async()=>{
    const reg=await navigator.serviceWorker.getRegistration();
    try{await reg.update()}catch{}
@@ -17,6 +18,8 @@ test('controlled activation fault is delivered and existing offline shell remain
   });
   const observed=Number(await (await request.get('/__test/bad-fetch-count')).text());
   expect(observed,'Browser must actually fetch injected worker script').toBeGreaterThan(prior);
+  const activationObserved=Number(await (await request.get('/__test/activation-count')).text());
+  expect(activationObserved,'Browser must execute injected activation handler').toBeGreaterThan(activationPrior);
   expect(outcome.shell).toBe(true);
   expect(outcome.keys).toContain('sw-phase-a-good-1');
   expect(outcome.active).toBe(true);
