@@ -33,7 +33,7 @@ class Handler(SimpleHTTPRequestHandler):
             if mode == 'bad-install':
                 body=b"self.addEventListener('install',e=>e.waitUntil(Promise.reject(Error('injected install failure'))));"
             elif mode == 'bad-activate':
-                body=b"self.addEventListener('install',e=>e.waitUntil(Promise.resolve()));self.addEventListener('activate',e=>e.waitUntil(fetch('./__test/activation-observed',{method:'POST'}).then(()=>Promise.reject(Error('injected activation failure')))));"
+                body=b"self.addEventListener('install',e=>e.waitUntil(Promise.resolve()));self.addEventListener('activate',e=>e.waitUntil(fetch('./__test/activation-observed',{method:'POST'}).then(()=>Promise.reject(Error('injected activation failure')))));self.addEventListener('fetch',e=>{if(e.request.method==='GET'&&new URL(e.request.url).origin===location.origin)e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});"
             else:
                 body=(ROOT/'sw.js').read_bytes()
             self.send_response(200)
