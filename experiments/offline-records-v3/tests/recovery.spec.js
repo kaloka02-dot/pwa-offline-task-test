@@ -1,0 +1,10 @@
+import {test,expect} from '@playwright/test';
+test('schema upgrade preserves v1 data and atomic import rejects invalid backup',async({page})=>{
+await page.goto('/');
+await page.evaluate(async()=>{await new Promise((ok,no)=>{const r=indexedDB.deleteDatabase('offline-records-lab-v3');r.onsuccess=ok;r.onerror=()=>no(r.error)});await new Promise((ok,no)=>{const r=indexedDB.open('offline-records-lab-v3',1);r.onupgradeneeded=()=>r.result.createObjectStore('records',{keyPath:'id'});r.onsuccess=()=>{const db=r.result,tx=db.transaction('records','readwrite');tx.objectStore('records').put({id:'legacy-1',text:'Legacy record',createdAt:'2026-01-01'});tx.oncomplete=()=>{db.close();ok()};tx.onerror=()=>no(tx.error)};r.onerror=()=>no(r.error)})});
+await page.reload();await expect(page.getByText('Legacy record')).toBeVisible();await expect(page.getByRole('status')).toContainText('schema v2');
+await page.getByLabel('Record',{exact:true}).fill('New record');await page.getByRole('button',{name:'Add record'}).click();await expect(page.getByRole('status')).toContainText('Record committed');await page.reload();await expect(page.getByText('New record')).toBeVisible();
+const invalid=JSON.stringify({format:'offline-records-lab',version:1,records:[{id:'valid',text:'Should never import',createdAt:'2026-01-01'},{id:'bad',text:7,createdAt:'2026-01-01'}]});
+await page.locator('#import').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from(invalid)});await expect(page.getByRole('status')).toContainText('Import rejected');await expect(page.getByText('Should never import')).toHaveCount(0);
+const good=JSON.stringify({format:'offline-records-lab',version:1,records:[{id:'restored',text:'Restored record',createdAt:'2026-01-01'}]});await page.locator('#import').setInputFiles({name:'valid.json',mimeType:'application/json',buffer:Buffer.from(good)});await expect(page.getByText('Restored record')).toBeVisible();await page.reload();await expect(page.getByText('Restored record')).toBeVisible();
+});
