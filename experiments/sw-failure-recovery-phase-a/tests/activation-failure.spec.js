@@ -1,33 +1,23 @@
 import {test,expect} from '@playwright/test';
 
-test('controlled activation fault is delivered and existing offline shell remains readable',async({page,request})=>{
+test('activation fault is executed after prior client closes and old cache remains',async({page,request,context})=>{
  await request.post('/__test/mode',{data:'good'});
  await page.goto('/');
  await page.evaluate(()=>navigator.serviceWorker.ready);
- const before=await page.evaluate(async()=>({keys:await caches.keys(),shell:!!(await caches.match('./index.html'))}));
- expect(before.keys).toContain('sw-phase-a-good-1');
+ expect(await page.evaluate(async()=>!!(await caches.match('./index.html')))).toBe(true);
  try{
   await request.post('/__test/mode',{data:'bad-activate'});
-  const prior=Number(await (await request.get('/__test/bad-fetch-count')).text());
-  const activationPrior=Number(await (await request.get('/__test/activation-count')).text());
+  const fetchBefore=Number(await (await request.get('/__test/bad-fetch-count')).text());
+  const activateBefore=Number(await (await request.get('/__test/activation-count')).text());
+  await page.evaluate(async()=>{const r=await navigator.serviceWorker.getRegistration();try{await r.update()}catch{}});
   await page.close();
-  const outcome=await request.get('/__test/activation-count');
-  const activationObserved=Number(await outcome.text());
-  expect(activationObserved,'Browser must execute injected activation handler').toBeGreaterThan(activationPrior);
-  const result=await request.get('/index.html');
-  expect(result.ok()).toBe(true);
-  /* const outcome=await page.evaluate(async()=>{
-   const reg=await navigator.serviceWorker.getRegistration();
-   try{await reg.update()}catch{}
-   await new Promise(resolve=>setTimeout(resolve,750));
-   return {active:!!reg.active,keys:await caches.keys(),shell:!!(await caches.match('./index.html'))};
-  });
-  const observed=Number(await (await request.get('/__test/bad-fetch-count')).text());
-  expect(observed,'Browser must actually fetch injected worker script').toBeGreaterThan(prior);
-  const activationObserved=Number(await (await request.get('/__test/activation-count')).text());
-  expect(activationObserved,'Browser must execute injected activation handler').toBeGreaterThan(activationPrior);
-  expect(outcome.shell).toBe(true);
-  expect(outcome.keys).toContain('sw-phase-a-good-1');
-  expect(outcome.active).toBe(true); */
+  await expect.poll(async()=>Number(await (await request.get('/__test/activation-count')).text()),{timeout:10000}).toBeGreaterThan(activateBefore);
+  const fetched=Number(await (await request.get('/__test/bad-fetch-count')).text());
+  expect(fetched).toBeGreaterThan(fetchBefore);
+  const fresh=await context.newPage();
+  await fresh.goto('/');
+  await expect(fresh.locator('#release')).toHaveText('Release 1');
+  const keys=await fresh.evaluate(()=>caches.keys());
+  expect(keys).toContain('sw-phase-a-good-1');
  }finally{await request.post('/__test/mode',{data:'good'})}
 });
