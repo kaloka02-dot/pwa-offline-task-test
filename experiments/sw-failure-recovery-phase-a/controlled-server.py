@@ -14,7 +14,7 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(204);self.end_headers();return
         if self.path == '/__test/mode':
             mode=self.rfile.read(int(self.headers.get('Content-Length','0'))).decode().strip()
-            if mode not in ('good','bad-install','bad-activate'):
+            if mode not in ('good','bad-install','bad-activate','bad-script'):
                 self.send_error(400);return
             (ROOT/'.sw-mode').write_text(mode)
             self.send_response(204);self.end_headers();return
@@ -30,6 +30,8 @@ class Handler(SimpleHTTPRequestHandler):
             mode=(ROOT/'.sw-mode').read_text().strip() if (ROOT/'.sw-mode').exists() else 'good'
             if mode != 'good':
                 Handler.bad_worker_fetches += 1
+            if mode == 'bad-script':
+                self.send_error(503,'Injected worker script retrieval failure');return
             if mode == 'bad-install':
                 body=b"self.addEventListener('install',e=>e.waitUntil(Promise.reject(Error('injected install failure'))));"
             elif mode == 'bad-activate':
