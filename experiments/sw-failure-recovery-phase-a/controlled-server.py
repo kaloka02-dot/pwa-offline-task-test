@@ -6,6 +6,14 @@ ROOT = Path(__file__).resolve().parent
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,directory=str(ROOT),**kwargs)
+    def do_POST(self):
+        if self.path == '/__test/mode':
+            mode=self.rfile.read(int(self.headers.get('Content-Length','0'))).decode().strip()
+            if mode not in ('good','bad-install','bad-activate'):
+                self.send_error(400);return
+            (ROOT/'.sw-mode').write_text(mode)
+            self.send_response(204);self.end_headers();return
+        self.send_error(404)
     def do_GET(self):
         if self.path.split('?')[0] == '/sw.js':
             mode=(ROOT/'.sw-mode').read_text().strip() if (ROOT/'.sw-mode').exists() else 'good'
