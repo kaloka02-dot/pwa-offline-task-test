@@ -1,0 +1,24 @@
+name: Isolated Service Worker Failure Recovery Phase A
+on:
+  push:
+    paths:
+      - 'experiments/sw-failure-recovery-phase-a/**'
+      - '.github/workflows/sw-failure-recovery-phase-a.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: experiments/sw-failure-recovery-phase-a
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
