@@ -19,5 +19,10 @@ test('activation fault is executed after prior client closes and old cache remai
   await expect(fresh.locator('#release')).toHaveText('Release 1');
   const keys=await fresh.evaluate(()=>caches.keys());
   expect(keys).toContain('sw-phase-a-good-1');
+  await context.setOffline(true);
+  try{
+   await fresh.reload();
+   await expect(fresh.locator('#release')).toHaveText('Release 1');
+  }finally{await context.setOffline(false)}
  }finally{await request.post('/__test/mode',{data:'good'})}
 });
