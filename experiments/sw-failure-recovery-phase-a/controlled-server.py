@@ -5,9 +5,13 @@ import os
 ROOT = Path(__file__).resolve().parent
 class Handler(SimpleHTTPRequestHandler):
     bad_worker_fetches=0
+    activation_attempts=0
     def __init__(self,*args,**kwargs):
         super().__init__(*args,directory=str(ROOT),**kwargs)
     def do_POST(self):
+        if self.path == '/__test/activation-observed':
+            Handler.activation_attempts += 1
+            self.send_response(204);self.end_headers();return
         if self.path == '/__test/mode':
             mode=self.rfile.read(int(self.headers.get('Content-Length','0'))).decode().strip()
             if mode not in ('good','bad-install','bad-activate'):
@@ -16,6 +20,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(204);self.end_headers();return
         self.send_error(404)
     def do_GET(self):
+        if self.path == '/__test/activation-count':
+            body=str(Handler.activation_attempts).encode()
+            self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
         if self.path == '/__test/bad-fetch-count':
             body=str(Handler.bad_worker_fetches).encode()
             self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
@@ -26,7 +33,7 @@ class Handler(SimpleHTTPRequestHandler):
             if mode == 'bad-install':
                 body=b"self.addEventListener('install',e=>e.waitUntil(Promise.reject(Error('injected install failure'))));"
             elif mode == 'bad-activate':
-                body=b"self.addEventListener('install',e=>e.waitUntil(Promise.resolve()));self.addEventListener('activate',e=>e.waitUntil(Promise.reject(Error('injected activation failure'))));"
+                body=b"self.addEventListener('install',e=>e.waitUntil(Promise.resolve()));self.addEventListener('activate',e=>e.waitUntil(fetch('./__test/activation-observed',{method:'POST'}).then(()=>Promise.reject(Error('injected activation failure')))));"
             else:
                 body=(ROOT/'sw.js').read_bytes()
             self.send_response(200)
