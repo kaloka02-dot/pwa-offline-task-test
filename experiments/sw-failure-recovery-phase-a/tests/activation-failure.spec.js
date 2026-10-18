@@ -8,15 +8,15 @@ test('controlled activation fault is delivered and existing offline shell remain
  expect(before.keys).toContain('sw-phase-a-good-1');
  try{
   await request.post('/__test/mode',{data:'bad-activate'});
-  const delivered=await request.get('/sw.js');
-  expect(delivered.ok()).toBe(true);
-  expect(await delivered.text()).toContain('injected activation failure');
+  const prior=Number(await (await request.get('/__test/bad-fetch-count')).text());
   const outcome=await page.evaluate(async()=>{
    const reg=await navigator.serviceWorker.getRegistration();
    try{await reg.update()}catch{}
    await new Promise(resolve=>setTimeout(resolve,750));
    return {active:!!reg.active,keys:await caches.keys(),shell:!!(await caches.match('./index.html'))};
   });
+  const observed=Number(await (await request.get('/__test/bad-fetch-count')).text());
+  expect(observed,'Browser must actually fetch injected worker script').toBeGreaterThan(prior);
   expect(outcome.shell).toBe(true);
   expect(outcome.keys).toContain('sw-phase-a-good-1');
   expect(outcome.active).toBe(true);
