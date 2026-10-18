@@ -25,6 +25,8 @@ test('activation fault is executed after prior client closes and old cache remai
   console.log('PHASE_B_FETCH_PROBE',JSON.stringify(offlineProbe));
   await context.setOffline(true);
   try{
+   const offlineFetch=await fresh.evaluate(async()=>{try{const r=await fetch('./index.html');return {ok:r.ok,status:r.status}}catch(e){return {error:String(e)}}});
+   console.log('PHASE_B_OFFLINE_FETCH',JSON.stringify(offlineFetch));
    await fresh.reload();
    await expect(fresh.locator('#release')).toHaveText('Release 1');
   }finally{await context.setOffline(false)}
