@@ -1,18 +1,24 @@
 import {test,expect} from '@playwright/test';
 
-// Route the service-worker script through a controlled server endpoint rather than page.route,
-// which cannot reliably intercept the browser's service-worker update fetch.
-test('candidate with rejected activation keeps existing cached shell accessible',async({page,request})=>{
+test('controlled activation fault is delivered and existing offline shell remains readable',async({page,request})=>{
+ await request.post('/__test/mode',{data:'good'});
  await page.goto('/');
  await page.evaluate(()=>navigator.serviceWorker.ready);
- const result=await page.evaluate(async()=>{
-  const reg=await navigator.serviceWorker.getRegistration();
-  const before=await caches.keys();
-  return {before,script:reg.active?.scriptURL,shell:!!(await caches.match('./index.html'))};
- });
- expect(result.before).toContain('sw-phase-a-good-1');
- expect(result.shell).toBe(true);
- // No injection performed in this test. Mark it as a baseline rather than claim rollback.
- await page.reload();
- await expect(page.locator('#release')).toHaveText('Release 1');
+ const before=await page.evaluate(async()=>({keys:await caches.keys(),shell:!!(await caches.match('./index.html'))}));
+ expect(before.keys).toContain('sw-phase-a-good-1');
+ try{
+  await request.post('/__test/mode',{data:'bad-activate'});
+  const delivered=await request.get('/sw.js');
+  expect(delivered.ok()).toBe(true);
+  expect(await delivered.text()).toContain('injected activation failure');
+  const outcome=await page.evaluate(async()=>{
+   const reg=await navigator.serviceWorker.getRegistration();
+   try{await reg.update()}catch{}
+   await new Promise(resolve=>setTimeout(resolve,750));
+   return {active:!!reg.active,keys:await caches.keys(),shell:!!(await caches.match('./index.html'))};
+  });
+  expect(outcome.shell).toBe(true);
+  expect(outcome.keys).toContain('sw-phase-a-good-1');
+  expect(outcome.active).toBe(true);
+ }finally{await request.post('/__test/mode',{data:'good'})}
 });
