@@ -1,0 +1,24 @@
+name: Offline Records V3 Recovery Tests
+on:
+  push:
+    paths:
+      - 'experiments/offline-records-v3/**'
+      - '.github/workflows/offline-records-v3.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: experiments/offline-records-v3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
