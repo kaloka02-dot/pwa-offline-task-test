@@ -19,6 +19,8 @@ test('activation fault is executed after prior client closes and old cache remai
   await expect(fresh.locator('#release')).toHaveText('Release 1');
   const keys=await fresh.evaluate(()=>caches.keys());
   expect(keys).toContain('sw-phase-a-good-1');
+  const diagnostic=await fresh.evaluate(async()=>{const reg=await navigator.serviceWorker.getRegistration();return {activeState:reg?.active?.state,activeScript:reg?.active?.scriptURL,waitingState:reg?.waiting?.state,controller:!!navigator.serviceWorker.controller,cacheKeys:await caches.keys(),shell:!!(await caches.match('./index.html'))}});
+  console.log('PHASE_B_DIAGNOSTIC',JSON.stringify(diagnostic));
   await context.setOffline(true);
   try{
    await fresh.reload();
