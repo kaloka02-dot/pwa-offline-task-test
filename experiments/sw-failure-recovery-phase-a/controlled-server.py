@@ -4,6 +4,7 @@ import os
 
 ROOT = Path(__file__).resolve().parent
 class Handler(SimpleHTTPRequestHandler):
+    bad_worker_fetches=0
     def __init__(self,*args,**kwargs):
         super().__init__(*args,directory=str(ROOT),**kwargs)
     def do_POST(self):
@@ -15,8 +16,13 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_response(204);self.end_headers();return
         self.send_error(404)
     def do_GET(self):
+        if self.path == '/__test/bad-fetch-count':
+            body=str(Handler.bad_worker_fetches).encode()
+            self.send_response(200);self.send_header('Content-Length',str(len(body)));self.end_headers();self.wfile.write(body);return
         if self.path.split('?')[0] == '/sw.js':
             mode=(ROOT/'.sw-mode').read_text().strip() if (ROOT/'.sw-mode').exists() else 'good'
+            if mode != 'good':
+                Handler.bad_worker_fetches += 1
             if mode == 'bad-install':
                 body=b"self.addEventListener('install',e=>e.waitUntil(Promise.reject(Error('injected install failure'))));"
             elif mode == 'bad-activate':
